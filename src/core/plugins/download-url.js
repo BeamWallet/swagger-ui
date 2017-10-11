@@ -1,14 +1,14 @@
 /* global Promise */
 
-import { createSelector } from "reselect"
-import { Map } from "immutable"
+import {createSelector} from "reselect"
+import {Map} from "immutable"
 
-export default function downloadUrlPlugin (toolbox) {
-  let { fn } = toolbox
+export default function downloadUrlPlugin(toolbox) {
+  let {fn} = toolbox
 
   const actions = {
-    download: (url)=> ({ errActions, specSelectors, specActions }) => {
-      let { fetch } = fn
+    download: (url) => ({errActions, specSelectors, specActions}) => {
+      let {fetch} = fn
       url = url || specSelectors.url()
       specActions.updateLoadingStatus("loading")
       fetch({
@@ -18,12 +18,12 @@ export default function downloadUrlPlugin (toolbox) {
         headers: {
           "Accept": "application/json,*/*"
         }
-      }).then(next,next)
+      }).then(next, next)
 
       function next(res) {
-        if(res instanceof Error || res.status >= 400) {
+        if (res instanceof Error || res.status >= 400) {
           specActions.updateLoadingStatus("failed")
-          return errActions.newThrownErr( new Error(res.statusText + " " + url) )
+          return errActions.newThrownErr(new Error(res.statusText + " " + url))
         }
         specActions.updateLoadingStatus("success")
         specActions.updateSpec(res.text)
@@ -32,9 +32,45 @@ export default function downloadUrlPlugin (toolbox) {
 
     },
 
+    beamLogin: (email, password, url) => ({errActions, specSelectors, specActions}) => {
+      let {fetch} = fn
+      url = url + '/v1/public/users/login'
+      // url = url || specSelectors.url()
+      // specActions.updateLoadingStatus("loading")
+      fetch({
+        url,
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
+      }).then(next)
+
+      function next(res) {
+
+        if (res instanceof Error || res.status >= 400) {
+          return errActions.newThrownErr(new Error(res.statusText + " " + url))
+        }
+        specActions.updateJwtToken(res.headers.authorization)
+      }
+    },
+
+    updateJwtToken: (stuff) => {
+      console.log("JWT token recieved from server")
+      return {
+        type: "spec_update_jwt_token",
+        payload: stuff
+      }
+    },
+
     updateLoadingStatus: (status) => {
       let enums = [null, "loading", "failed", "success", "failedConfig"]
-      if(enums.indexOf(status) === -1) {
+      if (enums.indexOf(status) === -1) {
         console.error(`Error: ${status} is not one of ${JSON.stringify(enums)}`)
       }
 
@@ -50,6 +86,11 @@ export default function downloadUrlPlugin (toolbox) {
       return (typeof action.payload === "string")
         ? state.set("loadingStatus", action.payload)
         : state
+    },
+    "spec_update_jwt_token": (state, action) => {
+      return (typeof action.payload === "string")
+        ? state.set("jwtToken", action.payload)
+        : state
     }
   }
 
@@ -59,12 +100,18 @@ export default function downloadUrlPlugin (toolbox) {
         return state || Map()
       },
       spec => spec.get("loadingStatus") || null
+    ),
+    jwtToken: createSelector(
+      state => {
+        return state || Map()
+      },
+      spec => spec.get("jwtToken") || ''
     )
   }
 
   return {
     statePlugins: {
-      spec: { actions, reducers, selectors }
+      spec: {actions, reducers, selectors}
     }
   }
 }

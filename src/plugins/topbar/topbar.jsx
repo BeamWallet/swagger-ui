@@ -3,6 +3,7 @@ import PropTypes from "prop-types"
 
 //import "./topbar.less"
 import Logo from "./logo_small.png"
+import {Select} from "../../core/components/layout-utils";
 
 export default class Topbar extends React.Component {
 
@@ -12,16 +13,31 @@ export default class Topbar extends React.Component {
 
   constructor(props, context) {
     super(props, context)
-    this.state = { url: props.specSelectors.url(), selectedIndex: 0 }
+    this.state = { url: props.specSelectors.url(), email: '', password: '', site: 'https://portal.api.dev.beamwallet.com', jwtToken: props.specSelectors.jwtToken(), selectedIndex: 0 }
   }
 
   componentWillReceiveProps(nextProps) {
-    this.setState({ url: nextProps.specSelectors.url() })
+    this.setState({ url: nextProps.specSelectors.url(), jwtToken: nextProps.specSelectors.jwtToken() })
   }
 
   onUrlChange =(e)=> {
     let {target: {value}} = e
     this.setState({url: value})
+  }
+
+  onEmailChange =(e)=> {
+    let {target: {value}} = e
+    this.setState({email: value})
+  }
+
+  onPasswordChange =(e)=> {
+    let {target: {value}} = e
+    this.setState({password: value})
+  }
+
+  onSiteChange =(e)=> {
+    let {target: {value}} = e
+    this.setState({site: value})
   }
 
   loadSpec = (url) => {
@@ -40,6 +56,12 @@ export default class Topbar extends React.Component {
     this.loadSpec(this.state.url)
     e.preventDefault()
   }
+
+  loginToBeam = (e) => {
+    this.props.specActions.beamLogin(this.state.email, this.state.password, this.state.site)
+    e.preventDefault()
+  }
+
 
   setSelectedUrl = (selectedUrl) => {
     const configs = this.props.getConfigs()
@@ -105,6 +127,13 @@ export default class Topbar extends React.Component {
     let control = []
     let formOnSubmit = null
 
+    let loginControl = []
+    let getCredentials = null
+
+    let jwtControl = []
+
+    let jwt = specSelectors.jwtToken()
+
     if(urls) {
       let rows = []
       urls.forEach((link, i) => {
@@ -121,8 +150,27 @@ export default class Topbar extends React.Component {
     }
     else {
       formOnSubmit = this.downloadUrl
+
       control.push(<input className="download-url-input" type="text" onChange={ this.onUrlChange } value={this.state.url} disabled={isLoading} style={inputStyle} />)
       control.push(<Button className="download-url-button" onClick={ this.downloadUrl }>Explore</Button>)
+
+      getCredentials = this.loginToBeam
+      loginControl.push(" Email Address: ")
+      loginControl.push(<input type="text" value={this.state.email} onChange={ this.onEmailChange } name="email" style={inputStyle}/>)
+      loginControl.push(" Password: ")
+      loginControl.push( <input type="password" value={this.state.password} onChange={ this.onPasswordChange } name="password" style={inputStyle}/>)
+      loginControl.push(" Site: ")
+      loginControl.push(<select name="site"  value={this.state.site} onChange={ this.onSiteChange }>
+        <option value="http://localhost:8080">localhost</option>
+        <option value="https://portal.api.dev.beamwallet.com">dev</option>
+        <option value="https://portal.api.staging.beamwallet.com">staging</option>
+      </select>)
+      loginControl.push(<Button className="button" onClick={ this.loginToBeam }>Login</Button>)
+
+      jwtControl.push(" JWT token: ")
+      jwtControl.push(<input id="jwtToken" value={this.state.jwtToken} style={inputStyle} disabled/>)
+      jwtControl.push(" (Copy JWT token and paste in authorize below) ")
+
     }
 
     return (
@@ -137,6 +185,12 @@ export default class Topbar extends React.Component {
               {control}
             </form>
           </div>
+        </div>
+        <div onSubmit={getCredentials}>
+          <form >
+            {loginControl}
+            {jwtControl}
+          </form>
         </div>
       </div>
     )
